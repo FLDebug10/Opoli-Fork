@@ -36,4 +36,8 @@ public final class ModCompat {
     public static final boolean PUFFISH_SKILLS = FabricLoader.getInstance().isModLoaded("puffish_skills");
 
     public static final boolean PUFFISH_SKILLS_ORIGINS = FabricLoader.getInstance().isModLoaded("puffish_skills_origins");
+
+    public static final boolean RHINO = FabricLoader.getInstance().isModLoaded("rhino");
+
+    public static final boolean ARCHITECTURY_API = FabricLoader.getInstance().isModLoaded("architectury");
 }
