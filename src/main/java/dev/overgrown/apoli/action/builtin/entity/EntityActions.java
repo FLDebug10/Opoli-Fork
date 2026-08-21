@@ -164,5 +164,9 @@ public final class EntityActions {
             ActionTypes.ENTITY.register(Apoli.id("knock_out"), new KnockOutAction());
             ActionTypes.ENTITY.register(Apoli.id("revive"), new ReviveAction());
         }
+
+        if (ModCompat.RHINO) {
+            ActionTypes.ENTITY.register(Apoli.id("script"), new JavaScriptEntityAction());
+        }
     }
 }
