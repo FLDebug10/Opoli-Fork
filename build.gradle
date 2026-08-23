@@ -18,6 +18,10 @@ loom {
 	}
 }
 
+configurations {
+	typeDefGen
+}
+
 repositories {
 	mavenCentral()
 	// Icarus (optional compile-time dependency for the apoli:wings compat power type).
@@ -49,6 +53,15 @@ repositories {
 	maven {
 		name = "Henkel"
 		url = "https://maven.maxhenkel.de/repository/public"
+	}
+
+	maven { url = "https://maven.architectury.dev/" }
+
+	maven {
+		url = "https://maven.latvian.dev/releases"
+		content {
+			includeGroup("dev.latvian.mods")
+		}
 	}
 }
 
@@ -108,6 +121,13 @@ dependencies {
 	testImplementation platform("org.junit:junit-bom:5.10.2")
 	testImplementation "org.junit.jupiter:junit-jupiter"
 	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+
+	modCompileOnly "dev.architectury:architectury-fabric:13.0.8"
+	modCompileOnly "dev.latvian.mods:rhino:2101.2.7-build.85"
+
+	typeDefGen "org.ow2.asm:asm:9.9"
+	typeDefGen "org.ow2.asm:asm-tree:9.9"
+	typeDefGen "dev.architectury:architectury-fabric:13.0.8"
 }
 
 processResources {
@@ -163,4 +183,19 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+
+tasks.register("generateTypeDef", JavaExec) {
+	dependsOn classes
+
+	classpath = sourceSets.main.runtimeClasspath + configurations.typeDefGen
+	mainClass = "dev.overgrown.apoli.script.generator.TypeDefGen"
+
+	def scanClasspath = files(
+			sourceSets.main.output,
+			configurations.minecraftNamedCompile,
+			configurations.modCompileClasspath
+	)
+
+	systemProperty "typeDef.scanClasspath", scanClasspath.asPath
 }
