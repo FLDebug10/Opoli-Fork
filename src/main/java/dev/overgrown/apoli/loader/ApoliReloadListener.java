@@ -12,6 +12,8 @@ import dev.overgrown.apoli.ApoliNetwork;
 import dev.overgrown.apoli.alias.AliasDefault;
 import dev.overgrown.apoli.alias.NamespaceAlias;
 import dev.overgrown.apoli.condition.StaticCondition;
+import dev.overgrown.apoli.macros.MacroLoader;
+import dev.overgrown.apoli.macros.MacroRegistry;
 import dev.overgrown.apoli.power.ApoliPowers;
 import dev.overgrown.apoli.power.Power;
 import dev.overgrown.apoli.power.LegacyPowerShapes;
@@ -48,7 +50,16 @@ public final class ApoliReloadListener extends SimpleJsonResourceReloadListener 
 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> data, ResourceManager rm, ProfilerFiller profiler) {
-        Map<ResourceLocation, Dynamic<JsonElement>> expanded = new LinkedHashMap<>(data.size());
+        Map<ResourceLocation, Dynamic<JsonElement>> dynamicMap = new HashMap<>();
+
+        for (var entry : data.entrySet()) {
+            dynamicMap.put(entry.getKey(), new Dynamic<>(JsonOps.INSTANCE, entry.getValue()));
+        }
+
+        dynamicMap = MacroLoader.load(dynamicMap);
+        data = MacroRegistry.applyAll(dynamicMap);
+
+        Map<ResourceLocation, Dynamic<JsonElement>> expanded = new LinkedHashMap<>(dynamicMap.size());
         for (Map.Entry<ResourceLocation, JsonElement> e : data.entrySet()) {
             ResourceLocation id = e.getKey();
             try {
