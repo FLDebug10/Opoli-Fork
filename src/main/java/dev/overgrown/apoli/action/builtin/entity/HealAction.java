@@ -20,12 +20,17 @@ public final class HealAction implements ActionType<EntityCtx, HealAction.Cfg> {
     @Override
     public void run(Cfg cfg, EntityCtx ctx) {
         LivingEntity living = ctx.living();
-        if (living == null) return;
-
-        if (cfg.amount.eval(living) >= 0) {
-            living.heal((float) cfg.amount.eval(living));
-        } else {
-            living.setHealth(living.getHealth() + (float) cfg.amount.eval(living));
+        if (living == null || living.isDeadOrDying()) return;
+        float amount = (float) cfg.amount.eval(living);
+        if (amount > 0.0F) {
+            living.heal(amount);
+        } else if (amount < 0.0F) {
+            float health = living.getHealth() + amount;
+            if (health > 0.0F) {
+                living.setHealth(health);
+            } else {
+                living.hurt(living.damageSources().generic(), Float.MAX_VALUE);
+            }
         }
     }
 }

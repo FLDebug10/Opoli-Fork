@@ -7,7 +7,8 @@
     "IcarusHelperMixin"
   ],
   "client": [
-    "client.IcarusClientMixin"
+    "client.IcarusClientMixin",
+    "client.WingEntityModelMixin"
   ],
   "injectors": {
     "defaultRequire": 1

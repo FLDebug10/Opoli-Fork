@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.overgrown.apoli.client.render.AnimationPlayer;
 import dev.overgrown.apoli.client.render.HandRenderPass;
 import dev.overgrown.apoli.client.render.ModelPartAnimator;
+import dev.overgrown.apoli.client.render.ModelPartEdits;
 import dev.overgrown.apoli.data.ModelAnimation;
 import dev.overgrown.apoli.power.builtin.ModifyPlayerModelPower;
 import dev.overgrown.apoli.data.ModelPartTimeline;
@@ -114,7 +115,8 @@ public abstract class HumanoidModelModifyPartsMixin {
                     continue;
                 }
                 for (int p = 0; p < apoli$scratch.size(); p++) {
-                    apoli$apply(apoli$scratch.get(p), slot);
+                    ModelPart member = apoli$scratch.get(p);
+                    ModelPartEdits.apply(member, slot, apoli$originals.get(member));
                 }
             }
             apoli$scratch.clear();
@@ -155,12 +157,7 @@ public abstract class HumanoidModelModifyPartsMixin {
         apoli$scratch.clear();
         ModelPartLookup.allPartsInto((HumanoidModel<?>) (Object) this, apoli$scratch);
         for (ModelPart part : apoli$scratch) {
-            apoli$originals.put(part, new float[]{
-                part.x, part.y, part.z,
-                part.xRot, part.yRot, part.zRot,
-                part.xScale, part.yScale, part.zScale,
-                part.visible ? 1f : 0f, part.skipDraw ? 1f : 0f
-            });
+            apoli$originals.put(part, ModelPartEdits.snapshot(part));
         }
         apoli$scratch.clear();
     }
@@ -168,35 +165,7 @@ public abstract class HumanoidModelModifyPartsMixin {
     @Unique
     private void apoli$restore() {
         for (Map.Entry<ModelPart, float[]> entry : apoli$originals.entrySet()) {
-            ModelPart part = entry.getKey();
-            float[] o = entry.getValue();
-            part.x = o[0]; part.y = o[1]; part.z = o[2];
-            part.xRot = o[3]; part.yRot = o[4]; part.zRot = o[5];
-            part.xScale = o[6]; part.yScale = o[7]; part.zScale = o[8];
-            part.visible = o[9] != 0f;
-            part.skipDraw = o[10] != 0f;
-        }
-    }
-
-    @Unique
-    private void apoli$apply(ModelPart part, ModelPartTimeline.Slot slot) {
-        ModelPartTransformation t = slot.transformation();
-        float[] o = apoli$originals.get(part);
-        float value = slot.value();
-        float weight = slot.weight();
-        boolean override = t.overrideAnimation();
-        switch (t.type()) {
-            case PITCH -> part.xRot = override ? part.xRot + (value - part.xRot) * weight : part.xRot + value * weight;
-            case YAW -> part.yRot = override ? part.yRot + (value - part.yRot) * weight : part.yRot + value * weight;
-            case ROLL -> part.zRot = override ? part.zRot + (value - part.zRot) * weight : part.zRot + value * weight;
-            case VISIBLE -> { if (weight >= 0.5f) part.visible = value != 0f; }
-            case HIDDEN -> { if (weight >= 0.5f) part.skipDraw = value != 0f; }
-            case X_SCALE -> part.xScale = (o != null ? o[6] : 1f) + value * weight;
-            case Y_SCALE -> part.yScale = (o != null ? o[7] : 1f) + value * weight;
-            case Z_SCALE -> part.zScale = (o != null ? o[8] : 1f) + value * weight;
-            case PIVOT_X -> part.x += value * weight;
-            case PIVOT_Y -> part.y += value * weight;
-            case PIVOT_Z -> part.z += value * weight;
+            ModelPartEdits.restore(entry.getKey(), entry.getValue());
         }
     }
 }

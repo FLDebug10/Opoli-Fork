@@ -1,5 +1,6 @@
 package dev.overgrown.apoli;
 
+import dev.overgrown.apoli.effects.CustomEffectNetworking;
 import dev.overgrown.apoli.network.ProtocolCompat;
 import dev.overgrown.apoli.network.payload.ApplyVelocityS2C;
 import dev.overgrown.apoli.network.payload.BuySkillC2S;
@@ -100,6 +101,9 @@ public final class ApoliNetwork {
         PayloadTypeRegistry.playS2C().register(RopeVerletLengthS2C.TYPE, RopeVerletLengthS2C.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(RopeChangeLengthC2S.TYPE, RopeChangeLengthC2S.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(RopeSwingC2S.TYPE, RopeSwingC2S.STREAM_CODEC);
+        PayloadTypeRegistry.configurationS2C().register(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE, CustomEffectNetworking.SyncCustomEffectsPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE, CustomEffectNetworking.SyncCustomEffectsPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CustomEffectNetworking.SyncCustomEffectsResponsePayload.TYPE, CustomEffectNetworking.SyncCustomEffectsResponsePayload.CODEC);
     }
 
     public static void broadcastRopeCreate(ServerLevel level, RopeCreateS2C payload) {

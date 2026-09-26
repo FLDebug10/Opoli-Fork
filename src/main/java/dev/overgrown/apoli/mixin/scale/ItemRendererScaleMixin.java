@@ -1,6 +1,7 @@
 package dev.overgrown.apoli.mixin.scale;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.overgrown.apoli.scale.ScaleType;
 import dev.overgrown.apoli.scale.ScaleTypes;
 import dev.overgrown.apoli.scale.Scales;
 import net.fabricmc.api.EnvType;
@@ -8,6 +9,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -33,6 +35,15 @@ public abstract class ItemRendererScaleMixin {
         return !Scales.untouched(entity);
     }
 
+    @Unique
+    private static ScaleType apoli$handScale(LivingEntity entity, ItemStack stack, boolean leftHand) {
+        if (stack == entity.getOffhandItem()) return ScaleTypes.HELD_ITEM_OFFHAND;
+        if (stack == entity.getMainHandItem()) return ScaleTypes.HELD_ITEM_MAINHAND;
+        return leftHand == (entity.getMainArm() == HumanoidArm.LEFT)
+            ? ScaleTypes.HELD_ITEM_MAINHAND
+            : ScaleTypes.HELD_ITEM_OFFHAND;
+    }
+
     @Inject(method = "renderStatic(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;ZLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/world/level/Level;III)V",
             at = @At("HEAD"))
     private void apoli$scaleHeldItemPush(@Nullable LivingEntity entity, ItemStack stack, ItemDisplayContext context,
@@ -40,7 +51,7 @@ public abstract class ItemRendererScaleMixin {
                                          @Nullable Level level, int light, int overlay, int seed, CallbackInfo ci) {
         if (!apoli$scalable(entity, stack, context)) return;
         poseStack.pushPose();
-        float scale = Scales.applied(entity, ScaleTypes.HELD_ITEM, Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        float scale = Scales.applied(entity, apoli$handScale(entity, stack, leftHand), Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
         if (scale != 1.0F) poseStack.scale(scale, scale, scale);
     }
 

@@ -45,6 +45,12 @@ public final class ModCompat {
 
     public static final boolean INDEXOR = classPresent("ledger.core.LedgerManager");
 
+    public static final boolean YIGD = classPresent("com.b1n_ry.yigd.compat.InvModCompat")
+        && classPresent("com.b1n_ry.yigd.events.LoadModCompatEvent");
+
+    public static final boolean GRAVESTONES = classPresent("net.pneumono.gravestones.api.GravestoneDataType")
+        && classPresent("net.pneumono.gravestones.api.event.GravestoneContentsEvents");
+
     public static boolean classPresent(String binaryName) {
         return ModCompat.class.getClassLoader().getResource(binaryName.replace('.', '/') + ".class") != null;
     }

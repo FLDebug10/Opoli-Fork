@@ -21,6 +21,7 @@ public abstract class LivingEntityDualSwingMixin implements DualSwingHolder {
 
     @Unique private boolean apoli$bothArms;
     @Unique private boolean apoli$wasSwinging;
+    @Unique private int apoli$previousSwingTime;
     @Unique private InteractionHand apoli$previousArm;
 
     @Override
@@ -36,6 +37,7 @@ public abstract class LivingEntityDualSwingMixin implements DualSwingHolder {
     @Inject(method = SWING, at = @At("HEAD"))
     private void apoli$captureSwing(InteractionHand hand, boolean broadcastToSelf, CallbackInfo ci) {
         this.apoli$wasSwinging = this.swinging;
+        this.apoli$previousSwingTime = this.swingTime;
         this.apoli$previousArm = this.swingingArm;
     }
 
@@ -44,7 +46,11 @@ public abstract class LivingEntityDualSwingMixin implements DualSwingHolder {
         InteractionHand previous = this.apoli$previousArm;
         this.apoli$previousArm = null;
         if (this.swingTime != -1 || this.swingingArm != hand) return;
-        this.apoli$bothArms = this.apoli$wasSwinging && previous != null && previous != hand;
+        if (!this.apoli$wasSwinging || this.apoli$previousSwingTime >= 0 || previous == null) {
+            this.apoli$bothArms = false;
+        } else if (previous != hand) {
+            this.apoli$bothArms = true;
+        }
     }
 
     @Inject(method = "updateSwingTime", at = @At("TAIL"))

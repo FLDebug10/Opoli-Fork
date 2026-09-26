@@ -11,22 +11,21 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 import java.util.Map;
+import java.util.Set;
 
 @Mixin(RegistrySyncManager.class)
 public class FabricRegistrySyncCustomEffectMixin {
     @ModifyReturnValue(method = "createAndPopulateRegistryMap", at = @At("RETURN"))
     @Nullable
     private static Map<ResourceLocation, Object2IntMap<ResourceLocation>> apoli$filterCustomEffects(@Nullable Map<ResourceLocation, Object2IntMap<ResourceLocation>> original) {
-        var custom_effects = CustomEffectRegistry.byId.keySet();
-
-        if (original == null) {
-            return null;
+        if (original == null) return null;
+        Set<ResourceLocation> custom = CustomEffectRegistry.ids();
+        if (custom.isEmpty()) return original;
+        Object2IntMap<ResourceLocation> effects = original.get(Registries.MOB_EFFECT.location());
+        if (effects == null) return original;
+        for (ResourceLocation id : custom) {
+            effects.removeInt(id);
         }
-
-        custom_effects.forEach(id ->
-                original.get(Registries.MOB_EFFECT.location()).removeInt(id)
-        );
-
         return original;
     }
 }

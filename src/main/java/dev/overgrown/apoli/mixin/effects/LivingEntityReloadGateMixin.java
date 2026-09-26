@@ -12,8 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public class LivingEntityReloadGateMixin {
     @Inject(method = "canBeAffected", at = @At(value = "HEAD"), cancellable = true)
-    void apoli$preventEffectsDuringReload(MobEffectInstance mobEffectInstance, CallbackInfoReturnable<Boolean> cir) {
-        if (!((LivingEntity) (Object) this).level().isClientSide() && (CustomEffectRegistry.reloading || !CustomEffectRegistry.waiting.isEmpty()) && mobEffectInstance.getEffect().value() instanceof CustomMobEffect) {
+    private void apoli$preventEffectsDuringReload(MobEffectInstance mobEffectInstance, CallbackInfoReturnable<Boolean> cir) {
+        if (CustomEffectRegistry.blocksCustomEffects()
+                && mobEffectInstance.getEffect().value() instanceof CustomMobEffect
+                && !((LivingEntity) (Object) this).level().isClientSide()) {
             cir.setReturnValue(false);
         }
     }

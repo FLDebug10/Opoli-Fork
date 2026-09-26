@@ -41,6 +41,17 @@ public final class PartColorMap {
         return map.colors;
     }
 
+    public static void attach(ModelPart part, float[] colours, int at) {
+        PartColorMap map = SCRATCH.get();
+        float[] color = map.colors.get(part);
+        if (color == null) {
+            color = map.next();
+            map.colors.put(part, color);
+        }
+        System.arraycopy(colours, at, color, 0, 5);
+        ModelColorState.set(map.colors);
+    }
+
     private void multiply(ModelPart part, float[] whole) {
         float[] color = colors.get(part);
         if (color == null) {

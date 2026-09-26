@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ProtocolCompat {
 
-    public static final int VERSION = 12;
+    public static final int VERSION = 13;
 
     private static final Set<UUID> SENT_LEGACY = ConcurrentHashMap.newKeySet();
 

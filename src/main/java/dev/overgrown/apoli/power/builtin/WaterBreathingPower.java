@@ -36,14 +36,7 @@ public final class WaterBreathingPower extends PowerType<WaterBreathingPower.Con
     }
 
     public static boolean suffocatesOutsideWater(LivingEntity entity) {
-        PowerContainer container = PowerContainer.of(entity);
-        if (container == null || container.isEmpty()) return false;
-        if (container.powersOfType(ApoliIds.WATER_BREATHING).isEmpty()) return false;
-        boolean[] suffocates = {false};
-        PowerLookup.forEach(entity, ApoliIds.WATER_BREATHING, Config.class, cfg -> {
-            if (cfg.suffocateOutsideWater()) suffocates[0] = true;
-        });
-        return suffocates[0];
+        return PowerLookup.anyActive(entity, ApoliIds.WATER_BREATHING, Config.class, Config::suffocateOutsideWater);
     }
 
     public static void tick(LivingEntity entity) {

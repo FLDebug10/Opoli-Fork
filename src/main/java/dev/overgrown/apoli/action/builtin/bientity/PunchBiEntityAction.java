@@ -9,6 +9,7 @@ import dev.overgrown.apoli.action.ActionType;
 import dev.overgrown.apoli.codec.IdCodecs;
 import dev.overgrown.apoli.codec.LoggedOptionalField;
 import dev.overgrown.apoli.condition.context.BiEntityCtx;
+import dev.overgrown.apoli.data.Hand;
 import dev.overgrown.apoli.data.ItemStackData;
 import dev.overgrown.apoli.mixin.damage.LivingEntityAttackStrengthAccessor;
 import net.minecraft.core.Holder;
@@ -33,14 +34,15 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import java.util.Optional;
 
 public final class PunchBiEntityAction implements ActionType<BiEntityCtx, PunchBiEntityAction.Cfg> {
-    public record Cfg(Optional<ItemStackData> stack, Optional<ResourceLocation> damageType, boolean swingHand,
-                      boolean resetCooldown, boolean ignoreCooldown) {}
+    public record Cfg(Optional<ItemStackData> stack, Optional<ResourceLocation> damageType, Hand hand,
+                      boolean swingHand, boolean resetCooldown, boolean ignoreCooldown) {}
 
     @Override
     public MapCodec<Cfg> codec() {
         return RecordCodecBuilder.mapCodec(i -> i.group(
             LoggedOptionalField.strict("stack", ItemStackData.CODEC).forGetter(Cfg::stack),
             LoggedOptionalField.strict("damage_type", IdCodecs.ID).forGetter(Cfg::damageType),
+            Hand.CODEC.optionalFieldOf("hand", Hand.MAIN_HAND).forGetter(Cfg::hand),
             Codec.BOOL.optionalFieldOf("swing_hand", true).forGetter(Cfg::swingHand),
             Codec.BOOL.optionalFieldOf("reset_cooldown", true).forGetter(Cfg::resetCooldown),
             Codec.BOOL.optionalFieldOf("ignore_cooldown", false).forGetter(Cfg::ignoreCooldown)
@@ -55,6 +57,7 @@ public final class PunchBiEntityAction implements ActionType<BiEntityCtx, PunchB
         if (!(ctx.level() instanceof ServerLevel level)) return;
 
         ItemStack substitute = cfg.stack.map(ItemStackData::stack).map(ItemStack::copy).orElse(null);
+        if (substitute == null && cfg.hand == Hand.OFF_HAND) substitute = actor.getItemInHand(InteractionHand.OFF_HAND);
         ItemStack original = null;
         if (substitute != null) {
             original = actor.getItemInHand(InteractionHand.MAIN_HAND);
@@ -79,7 +82,7 @@ public final class PunchBiEntityAction implements ActionType<BiEntityCtx, PunchB
             } else {
                 hurt(actor, target, level, actor.damageSources().mobAttack(actor));
             }
-            if (cfg.swingHand) actor.swing(InteractionHand.MAIN_HAND, true);
+            if (cfg.swingHand) actor.swing(cfg.hand.vanilla(), true);
         } finally {
             if (cooldown != null && !cfg.resetCooldown) cooldown.apoli$setAttackStrengthTicker(restoreTicker);
             if (substitute != null) hold(actor, substitute, original);

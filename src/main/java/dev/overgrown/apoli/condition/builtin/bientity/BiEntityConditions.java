@@ -10,6 +10,7 @@ public final class BiEntityConditions {
     public static void register() {
         ConditionTypes.BI_ENTITY.register(Apoli.id("distance"), new DistanceCondition());
         ConditionTypes.BI_ENTITY.register(Apoli.id("owner"), new OwnerCondition());
+        ConditionTypes.BI_ENTITY.register(Apoli.id("projectile_owner"), new ProjectileOwnerCondition());
         ConditionTypes.BI_ENTITY.register(
             Apoli.id("same_team"),
             new SameTeamCondition(),

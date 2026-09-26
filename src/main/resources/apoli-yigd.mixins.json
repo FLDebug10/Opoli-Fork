@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "package": "dev.overgrown.apoli.compat.yigd.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "dev.overgrown.apoli.compat.grave.GraveCompatMixinPlugin",
+  "mixins": [
+    "GraveBlockEntityMixin",
+    "InventoryComponentAccessor"
+  ],
+  "client": [
+    "GraveBlockEntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

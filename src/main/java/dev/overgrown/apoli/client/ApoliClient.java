@@ -15,7 +15,6 @@ import dev.overgrown.apoli.network.payload.RopeVerletLengthS2C;
 import dev.overgrown.apoli.network.payload.SyncEntityPowersS2C;
 import dev.overgrown.apoli.network.payload.SyncKeybindsS2C;
 import dev.overgrown.apoli.network.payload.SyncPowersS2C;
-import dev.overgrown.apoli.power.builtin.SprintingPower;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
@@ -77,8 +76,12 @@ public final class ApoliClient implements ClientModInitializer {
             entity == net.minecraft.client.Minecraft.getInstance().player && KeyPressWatcher.isLocalHeld(key, grace));
         KeyPressWatcher.setSender(keys -> ClientPlayNetworking.send(new KeyHeldC2S(keys)));
 
-        ClientPlayNetworking.registerGlobalReceiver(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE, SyncCustomEffectRegistry::sync);
-        ClientConfigurationNetworking.registerGlobalReceiver(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE, (payload, context) -> SyncCustomEffectRegistry.sync(payload, null));
+        ClientPlayNetworking.registerGlobalReceiver(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE, SyncCustomEffectRegistry::onPlay);
+        ClientConfigurationNetworking.registerGlobalReceiver(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE, (payload, context) -> SyncCustomEffectRegistry.onConfiguration(payload));
+        net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationConnectionEvents.COMPLETE.register((handler, client) ->
+            SyncCustomEffectRegistry.onConfigurationComplete());
+        net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationConnectionEvents.DISCONNECT.register((handler, client) ->
+            SyncCustomEffectRegistry.onDisconnect());
 
         ClientPlayNetworking.registerGlobalReceiver(SyncPowersS2C.TYPE, (payload, context) ->
             context.client().execute(() -> ClientPowerState.applyPowersSync(payload)));
@@ -235,6 +238,7 @@ public final class ApoliClient implements ClientModInitializer {
                     ShaderPowerState.invalidate();
                     dev.overgrown.apoli.client.particle.ParticleSheet.clearCache();
                     dev.overgrown.apoli.client.particle.ParticleTextures.clearCache();
+                    dev.overgrown.apoli.client.render.AnimatedTextures.clearCache();
                 }
             });
 
@@ -295,15 +299,5 @@ public final class ApoliClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register((gfx, tracker) -> TextOverlayRenderer.render(gfx, tracker.getGameTimeDeltaPartialTick(false)));
         HudRenderCallback.EVENT.register((gfx, tracker) -> OverlayRenderer.renderAboveHud(gfx, tracker.getGameTimeDeltaPartialTick(false)));
         HudRenderCallback.EVENT.register((gfx, tracker) -> DevHudRenderer.render(gfx, tracker.getGameTimeDeltaPartialTick(false)));
-
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player != null && SprintingPower.isSprinting(client.player)) {
-                boolean isPressingUp = client.player.input.up;
-
-                if (isPressingUp) {
-                    client.player.setSprinting(true);
-                }
-            }
-        });
     }
 }
