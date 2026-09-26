@@ -7,6 +7,7 @@ import dev.overgrown.apoli.power.ApoliPowers;
 import dev.overgrown.apoli.power.Power;
 import dev.overgrown.apoli.power.PowerType;
 import dev.overgrown.apoli.power.PowerTypeRegistry;
+import dev.overgrown.apoli.client.render.AnimatedTextures;
 import dev.overgrown.apoli.client.render.DynamicTextures;
 import dev.overgrown.apoli.data.expr.ExprContext;
 import dev.overgrown.apoli.data.TextureRef;
@@ -131,7 +132,9 @@ public final class OverlayRenderer {
             if (poseScale != 1.0F) graphics.pose().popPose();
             return;
         }
-        ResourceLocation texture = DynamicTextures.resolve(ref.texture(), subject, member);
+        ResourceLocation texture = kind == null
+            ? AnimatedTextures.bindable(ref.texture())
+            : DynamicTextures.resolve(ref.texture(), subject, member);
         boolean face = kind == TextureRef.Kind.PLAYER_FACE;
         int texW = entry.textureWidth().orElse(face ? 64 : w);
         int texH = entry.textureHeight().orElse(face ? 64 : h);
@@ -208,7 +211,7 @@ public final class OverlayRenderer {
             graphics.pose().pushPose();
             graphics.pose().scale(poseScale, poseScale, 1.0F);
         }
-        graphics.blit(DynamicTextures.resolve(entry.texture().texture(), DynamicTextures.subject(entry.texture(), player)),
+        graphics.blit(nauseaTexture(entry.texture(), player),
             x, y, -90, entry.u().evalInt(player), entry.v().evalInt(player), quadW, quadH, quadW, quadH);
         if (poseScale != 1.0F) graphics.pose().popPose();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -216,6 +219,11 @@ public final class OverlayRenderer {
         RenderSystem.disableBlend();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
+    }
+
+    private static ResourceLocation nauseaTexture(TextureRef ref, LocalPlayer player) {
+        if (ref.kind() == null) return AnimatedTextures.bindable(ref.texture());
+        return DynamicTextures.resolve(ref.texture(), DynamicTextures.subject(ref, player));
     }
 
     private static float poseScale(int lock) {

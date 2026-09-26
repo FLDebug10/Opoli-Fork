@@ -107,6 +107,27 @@ public final class BodyParts {
         BodyPart.POINT_FIXED, -1, 0, 24, 0, -1, 0, 0, 0,
         "any", "all");
 
+    public static final BodyPart RIGHT_WING = attachment("right_wing", BodyAttachments.RIGHT_WING, "wing_right");
+    public static final BodyPart LEFT_WING = attachment("left_wing", BodyAttachments.LEFT_WING, "wing_left");
+    public static final BodyPart WINGS = attachment("wings", BodyAttachments.WINGS);
+    public static final BodyPart RIGHT_EAR = attachment("right_ear", BodyAttachments.RIGHT_EAR, "ear_right");
+    public static final BodyPart LEFT_EAR = attachment("left_ear", BodyAttachments.LEFT_EAR, "ear_left");
+    public static final BodyPart EARS = attachment("ears", BodyAttachments.EARS);
+    public static final BodyPart HORNS = attachment("horns", BodyAttachments.HORNS, "horn");
+    public static final BodyPart SNOUT = attachment("snout", BodyAttachments.SNOUT);
+    public static final BodyPart TAIL = attachment("tail", BodyAttachments.TAIL);
+    public static final BodyPart RIGHT_ARM_CLAW = attachment("right_arm_claw", BodyAttachments.RIGHT_ARM_CLAW,
+        "claw_right_arm");
+    public static final BodyPart LEFT_ARM_CLAW = attachment("left_arm_claw", BodyAttachments.LEFT_ARM_CLAW,
+        "claw_left_arm");
+    public static final BodyPart RIGHT_LEG_CLAW = attachment("right_leg_claw", BodyAttachments.RIGHT_LEG_CLAW,
+        "claw_right_leg");
+    public static final BodyPart LEFT_LEG_CLAW = attachment("left_leg_claw", BodyAttachments.LEFT_LEG_CLAW,
+        "claw_left_leg");
+    public static final BodyPart CLAWS = attachment("claws", BodyAttachments.CLAWS);
+    public static final BodyPart EARS_CHEST = attachment("ears_chest", BodyAttachments.CHEST);
+    public static final BodyPart EARS_CAPE = attachment("ears_cape", BodyAttachments.CAPE);
+
     private static BodyPart limb(String name, int models, int limb, String bindKey, String... aliases) {
         return register(new BodyPart(name, ModelParts.normalize(name), models, 1 << limb, false, false, false,
             new BodyPart.Region[]{BodyPart.Region.whole(1 << limb)},
@@ -137,6 +158,13 @@ public final class BodyParts {
         return register(part, aliases);
     }
 
+    private static BodyPart attachment(String name, int attachments, String... aliases) {
+        BodyPart part = new BodyPart(name, ModelParts.normalize(name), 0, 0, false, false, true,
+            new BodyPart.Region[0], BodyPart.POINT_NONE, -1, 0, 0, 0, -1, 0, 0, 0, null);
+        part.attach(attachments);
+        return register(part, aliases);
+    }
+
     private static BodyPart register(BodyPart part, String... aliases) {
         BY_KEY.put(part.key(), part);
         CANONICAL.put(part.name(), part);
@@ -161,9 +189,19 @@ public final class BodyParts {
 
     public static DataResult<BodyPart> strict(String name) {
         BodyPart known = BY_KEY.get(ModelParts.normalize(name));
-        if (known != null) return DataResult.success(known);
-        return DataResult.error(() -> "Unknown body part '" + name + "'. Expected one of: "
-            + String.join(", ", CANONICAL.keySet()));
+        if (known != null && known.attachments() == 0) return DataResult.success(known);
+        String reason = known != null
+            ? "Body part '" + name + "' is drawn by another mod and has no hitbox."
+            : "Unknown body part '" + name + "'.";
+        return DataResult.error(() -> reason + " Expected one of: " + String.join(", ", hittableNames()));
+    }
+
+    private static List<String> hittableNames() {
+        List<String> names = new ArrayList<>();
+        for (BodyPart part : CANONICAL.values()) {
+            if (part.attachments() == 0) names.add(part.name());
+        }
+        return names;
     }
 
     public static List<BodyPart> all() {

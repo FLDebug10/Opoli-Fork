@@ -98,6 +98,15 @@ config="${mod_id}-sodium.mixins.json"
 [[mixins]]
 config="${mod_id}-ledger.mixins.json"
 
+# Optional You're in Grave Danger and GraveStone Mod compatibility — graves show the GraveInscriptions lines
+# (the origin, with Origins). Power inventories reach both through LivingDropsEvent or YIGD's compat API.
+# Gated by GraveCompatMixinPlugin, inert without the mods.
+[[mixins]]
+config="${mod_id}-yigd.mixins.json"
+
+[[mixins]]
+config="${mod_id}-gravestone.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]

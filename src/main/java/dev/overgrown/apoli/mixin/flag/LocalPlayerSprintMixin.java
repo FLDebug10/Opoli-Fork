@@ -2,6 +2,7 @@ package dev.overgrown.apoli.mixin.flag;
 
 import dev.overgrown.apoli.power.ApoliIds;
 import dev.overgrown.apoli.power.PowerLookup;
+import dev.overgrown.apoli.power.builtin.SprintingPower;
 import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -31,10 +32,12 @@ public abstract class LocalPlayerSprintMixin {
     }
 
     @Inject(method = "aiStep", at = @At("HEAD"))
-    private void apoli$stopPreventedSprint(CallbackInfo ci) {
+    private void apoli$applySprintPowers(CallbackInfo ci) {
         LocalPlayer self = (LocalPlayer) (Object) this;
-        if (!self.isSprinting()) return;
-        if (!PowerLookup.hasActive(self, ApoliIds.PREVENT_SPRINTING)) return;
-        self.setSprinting(false);
+        if (self.isSprinting()) {
+            if (PowerLookup.hasActive(self, ApoliIds.PREVENT_SPRINTING)) self.setSprinting(false);
+        } else if (self.input.up && SprintingPower.isSprinting(self)) {
+            self.setSprinting(true);
+        }
     }
 }

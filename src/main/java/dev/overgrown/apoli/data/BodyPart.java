@@ -75,6 +75,7 @@ public final class BodyPart {
     private final String bindKey;
     private BodyPart rightHanded;
     private BodyPart leftHanded;
+    private int attachments;
 
     BodyPart(String name, String key, int models, int limbs, boolean group, boolean everything, boolean custom,
              Region[] regions, int pointKind, int pointLimbA, float pointAX, float pointAY, float pointAZ,
@@ -102,6 +103,14 @@ public final class BodyPart {
     void handed(BodyPart rightHanded, BodyPart leftHanded) {
         this.rightHanded = rightHanded;
         this.leftHanded = leftHanded;
+    }
+
+    void attach(int attachments) {
+        this.attachments = attachments;
+    }
+
+    public int attachments() {
+        return attachments;
     }
 
     public String name() {

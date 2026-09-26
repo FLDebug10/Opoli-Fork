@@ -11,7 +11,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Collection;
+import java.util.List;
 
 public final class DeathHandler {
     private DeathHandler() {}
@@ -34,10 +39,6 @@ public final class DeathHandler {
                 if (loaded.condition().isPresent()
                     && !loaded.condition().get().test(new EntityCtx(dead, level))) continue;
                 aod.onDeath(cfg, dead, killer, source, level);
-            } else if (type instanceof InventoryPower inv
-                && loaded.config() instanceof InventoryPower.Config cfg
-                && cfg.dropOnDeath()) {
-                inv.dropOnDeath(powerId, cfg, dead, impl, level);
             } else if (type instanceof PowerStoragePower
                 && loaded.config() instanceof PowerStoragePower.Config cfg
                 && cfg.dropOnDeath()) {
@@ -60,6 +61,20 @@ public final class DeathHandler {
             if (loaded.condition().isPresent()
                 && !loaded.condition().get().test(new EntityCtx(killer, level))) continue;
             aok.onKill(powerId, cfg, killer, victim, source, level, impl);
+        }
+    }
+
+    public static void dropPowerInventories(LivingEntity dead, Collection<ItemEntity> drops, boolean dropsCancelled) {
+        List<InventoryPower.DeathDrop> taken = InventoryPower.deathDrops(dead, true);
+        for (int i = 0; i < taken.size(); i++) {
+            ItemStack stack = taken.get(i).stack();
+            if (dropsCancelled) {
+                dead.spawnAtLocation(stack);
+                continue;
+            }
+            ItemEntity item = new ItemEntity(dead.level(), dead.getX(), dead.getY(), dead.getZ(), stack);
+            item.setDefaultPickUpDelay();
+            drops.add(item);
         }
     }
 }

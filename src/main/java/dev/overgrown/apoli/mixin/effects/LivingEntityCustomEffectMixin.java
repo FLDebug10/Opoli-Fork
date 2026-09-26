@@ -14,14 +14,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public class LivingEntityCustomEffectMixin {
     @Inject(method = "onEffectRemoved", at = @At(value = "HEAD"))
-    void apoli$onRemoveEffect(MobEffectInstance mobEffectInstance, CallbackInfo ci) {
+    private void apoli$onRemoveEffect(MobEffectInstance mobEffectInstance, CallbackInfo ci) {
+        if (!(mobEffectInstance.getEffect().value() instanceof CustomMobEffect effect)) return;
         PowerContainer holder = PowerContainer.of((LivingEntity) (Object) this);
-        if (holder != null) holder.removeAllFromSource(mobEffectInstance.getEffect().unwrapKey().get().location());
+        if (holder != null) holder.removeAllFromSource(effect.id);
     }
 
     @Inject(method = "canBeAffected", at = @At(value = "HEAD"), cancellable = true)
-    void apoli$preventEffectsDuringReload(MobEffectInstance effectInstance, CallbackInfoReturnable<Boolean> cir) {
-        if ((CustomEffectRegistry.reloading || !CustomEffectRegistry.waiting.isEmpty()) && effectInstance.getEffect().value() instanceof CustomMobEffect) {
+    private void apoli$preventEffectsDuringReload(MobEffectInstance effectInstance, CallbackInfoReturnable<Boolean> cir) {
+        if (CustomEffectRegistry.blocksCustomEffects()
+                && effectInstance.getEffect().value() instanceof CustomMobEffect
+                && !((LivingEntity) (Object) this).level().isClientSide()) {
             cir.setReturnValue(false);
         }
     }

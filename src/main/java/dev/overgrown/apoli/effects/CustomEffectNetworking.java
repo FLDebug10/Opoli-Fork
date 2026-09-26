@@ -8,25 +8,41 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ByIdMap;
+import net.minecraft.world.effect.MobEffectCategory;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.configuration.ICustomConfigurationTask;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 public final class CustomEffectNetworking {
-    public record ClientEffectData(ResourceLocation id, Optional<String> name, Optional<ResourceLocation> icon, int color) {
+    private static final StreamCodec<ByteBuf, MobEffectCategory> CATEGORY_CODEC = ByteBufCodecs.idMapper(
+            ByIdMap.continuous(MobEffectCategory::ordinal, MobEffectCategory.values(), ByIdMap.OutOfBoundsStrategy.ZERO),
+            MobEffectCategory::ordinal);
+
+    public record ClientEffectData(ResourceLocation id, MobEffectCategory category, int color,
+                                   Optional<String> name, Optional<ResourceLocation> icon) {
         public static final StreamCodec<FriendlyByteBuf, ClientEffectData> CODEC = StreamCodec.composite(
                 ResourceLocation.STREAM_CODEC, ClientEffectData::id,
+                CATEGORY_CODEC, ClientEffectData::category,
+                ByteBufCodecs.INT, ClientEffectData::color,
                 ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), ClientEffectData::name,
                 ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC), ClientEffectData::icon,
-                ByteBufCodecs.INT, ClientEffectData::color,
                 ClientEffectData::new
         );
+
+        static ClientEffectData of(CustomMobEffect effect) {
+            return new ClientEffectData(effect.id, effect.getCategory(), effect.getColor(), effect.name, effect.icon);
+        }
+
+        public CustomMobEffect toEffect() {
+            return new CustomMobEffect(id, category, color, List.of(), name, icon);
+        }
     }
 
     public record SyncCustomEffectsResponsePayload(boolean success) implements CustomPacketPayload {
@@ -44,12 +60,24 @@ public final class CustomEffectNetworking {
 
         public static final StreamCodec<FriendlyByteBuf, SyncCustomEffectsPayload> CODEC = ClientEffectData.CODEC.apply(ByteBufCodecs.list()).map(SyncCustomEffectsPayload::new, SyncCustomEffectsPayload::effects);
 
-        @Override public @NotNull Type<? extends CustomPacketPayload> type() {
-            return TYPE;
+        static SyncCustomEffectsPayload of(List<CustomMobEffect> effects) {
+            List<ClientEffectData> data = new ArrayList<>(effects.size());
+            for (CustomMobEffect effect : effects) {
+                data.add(ClientEffectData.of(effect));
+            }
+            return new SyncCustomEffectsPayload(List.copyOf(data));
         }
 
-        public SyncCustomEffectsPayload() {
-            this(CustomEffectRegistry.byEffect.keySet().stream().sorted(Comparator.comparing(CustomEffect::id)).map(effect -> new ClientEffectData(effect.id(), effect.name(), effect.icon(), effect.colorInt())).toList());
+        public List<CustomMobEffect> toEffects() {
+            List<CustomMobEffect> out = new ArrayList<>(effects.size());
+            for (ClientEffectData data : effects) {
+                out.add(data.toEffect());
+            }
+            return out;
+        }
+
+        @Override public @NotNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
         }
     }
 
@@ -70,12 +98,7 @@ public final class CustomEffectNetworking {
     public static void sync(ServerPlayer player) {
         if (player.connection.getConnection().isMemoryConnection() || !EffectConfig.get().enabled()) return;
 
-        var payload = new SyncCustomEffectsPayload();
-
-        PacketDistributor.sendToPlayer(player, payload);
-
-        CustomEffectRegistry.waiting.add(player.getUUID());
-
-        Apoli.LOGGER.info("Play Packet send for {} Effects.", payload.effects.size());
+        PacketDistributor.sendToPlayer(player, CustomEffectRegistry.payload());
+        CustomEffectRegistry.awaitAck(player);
     }
 }

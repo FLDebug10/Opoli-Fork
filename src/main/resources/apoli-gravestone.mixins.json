@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "package": "dev.overgrown.apoli.compat.gravestone.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "dev.overgrown.apoli.compat.grave.GraveCompatMixinPlugin",
+  "mixins": [
+    "GraveStoneTileEntityMixin"
+  ],
+  "client": [
+    "GravestoneRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

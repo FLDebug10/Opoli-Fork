@@ -15,10 +15,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public final class KeepInventoryPower extends PowerType<KeepInventoryPower.Config> {
     public static final ResourceLocation CANONICAL = Apoli.id("keep_inventory");
@@ -49,23 +47,45 @@ public final class KeepInventoryPower extends PowerType<KeepInventoryPower.Confi
 
     public static List<Kept> takeKept(Player player) {
         List<Kept> kept = new ArrayList<>();
-        Set<Integer> visited = new HashSet<>();
         PowerLookup.forEach(player, ApoliIds.KEEP_INVENTORY, Config.class, cfg -> {
             List<Integer> configured = cfg.slots.orElse(null);
             int count = configured == null ? DEFAULT_SLOTS.length : configured.size();
             for (int i = 0; i < count; i++) {
                 int slot = configured == null ? DEFAULT_SLOTS[i] : configured.get(i);
-                if (!visited.add(slot)) continue;
                 SlotAccess access = player.getSlot(slot);
                 ItemStack stack = access.get();
-                if (stack.isEmpty()) continue;
-                if (cfg.itemCondition.isPresent()
-                    && !cfg.itemCondition.get().test(new ItemCtx(stack, player.level(), player))) continue;
+                if (stack.isEmpty() || !accepts(cfg, stack, player)) continue;
                 kept.add(new Kept(slot, stack.copy()));
                 access.set(ItemStack.EMPTY);
             }
         });
         return kept;
+    }
+
+    public static boolean keepsInventorySlot(Player player, int inventoryIndex, ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        int slot = slotId(inventoryIndex);
+        if (slot < 0) return false;
+        return PowerLookup.anyActive(player, ApoliIds.KEEP_INVENTORY, Config.class,
+            cfg -> covers(cfg, slot) && accepts(cfg, stack, player));
+    }
+
+    private static int slotId(int inventoryIndex) {
+        if (inventoryIndex >= 0 && inventoryIndex < 36) return inventoryIndex;
+        if (inventoryIndex >= 36 && inventoryIndex < 40) return 100 + inventoryIndex - 36;
+        return inventoryIndex == 40 ? 99 : -1;
+    }
+
+    private static boolean covers(Config cfg, int slot) {
+        if (cfg.slots.isPresent()) return cfg.slots.get().contains(slot);
+        for (int i = 0; i < DEFAULT_SLOTS.length; i++) {
+            if (DEFAULT_SLOTS[i] == slot) return true;
+        }
+        return false;
+    }
+
+    private static boolean accepts(Config cfg, ItemStack stack, Player player) {
+        return cfg.itemCondition.isEmpty() || cfg.itemCondition.get().test(new ItemCtx(stack, player.level(), player));
     }
 
     public static void putBack(Player player, List<Kept> kept) {

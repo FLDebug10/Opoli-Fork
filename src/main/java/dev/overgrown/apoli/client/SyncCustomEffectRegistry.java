@@ -1,34 +1,22 @@
 package dev.overgrown.apoli.client;
 
-import dev.overgrown.apoli.effects.CustomEffect;
+import dev.overgrown.apoli.Apoli;
 import dev.overgrown.apoli.effects.CustomEffectNetworking;
 import dev.overgrown.apoli.effects.CustomEffectRegistry;
-import dev.overgrown.apoli.effects.RuntimeMobEffectRegistry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.effect.MobEffectCategory;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import org.slf4j.LoggerFactory;
 
-import java.util.List;
+public final class SyncCustomEffectRegistry {
+    private SyncCustomEffectRegistry() {}
 
-public class SyncCustomEffectRegistry {
     public static void sync(CustomEffectNetworking.SyncCustomEffectsPayload payload, IPayloadContext context) {
-        LoggerFactory.getLogger("ClientRegistrySync").info("Received Payload for {} Effects.", payload.effects().size());
-
-        List<CustomEffect> effects = new java.util.ArrayList<>(List.of());
-
-        payload.effects().forEach(effect -> effects.add(CustomEffect.create(effect.id(), List.of(), Vec3.fromRGB24(effect.color()).scale(((double) 1 /255)), effect.icon(), 0, MobEffectCategory.NEUTRAL, effect.name())));
-
-        ((RuntimeMobEffectRegistry) BuiltInRegistries.MOB_EFFECT).apoli$truncate(effects.stream().sorted().toList());
-
-        effects.forEach(CustomEffectRegistry::register);
-
-        var success = true;
-
-        var replyPayload = new CustomEffectNetworking.SyncCustomEffectsResponsePayload(success);
-        context.reply(replyPayload);
+        boolean success;
+        try {
+            CustomEffectRegistry.install(payload.toEffects());
+            success = true;
+        } catch (RuntimeException e) {
+            Apoli.LOGGER.error("[Apoli] Could not apply the server's custom effects", e);
+            success = false;
+        }
+        context.reply(new CustomEffectNetworking.SyncCustomEffectsResponsePayload(success));
     }
-
-
 }

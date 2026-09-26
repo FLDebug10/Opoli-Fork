@@ -9,7 +9,6 @@ import dev.overgrown.apoli.client.rope.RopeRenderer;
 import dev.overgrown.apoli.entity.ApoliEntities;
 import dev.overgrown.apoli.power.PowerLookup;
 import dev.overgrown.apoli.power.ApoliIds;
-import dev.overgrown.apoli.power.builtin.SprintingPower;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -93,6 +92,7 @@ public final class ApoliClient {
             ShaderPowerState.invalidate();
             dev.overgrown.apoli.client.particle.ParticleSheet.clearCache();
             dev.overgrown.apoli.client.particle.ParticleTextures.clearCache();
+            dev.overgrown.apoli.client.render.AnimatedTextures.clearCache();
         });
         event.registerReloadListener(dev.overgrown.apoli.client.render.CustomModelManager.INSTANCE);
         event.registerReloadListener(dev.overgrown.apoli.client.render.AnimationManager.INSTANCE);
@@ -162,15 +162,6 @@ public final class ApoliClient {
             }
             ForcedKeys.tick();
             dev.overgrown.apoli.power.builtin.ModifyFogInterpolator.tick(mc.player);
-
-            Minecraft client = Minecraft.getInstance();
-
-            if (client.player != null && SprintingPower.isSprinting(client.player)) {
-                boolean isPressingUp = client.player.input.up;
-                if (isPressingUp) {
-                    client.player.setSprinting(true);
-                }
-            }
         }
 
         @SubscribeEvent

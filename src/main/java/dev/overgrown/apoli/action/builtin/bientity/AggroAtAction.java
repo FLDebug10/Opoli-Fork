@@ -1,13 +1,10 @@
 package dev.overgrown.apoli.action.builtin.bientity;
 
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.overgrown.apoli.action.ActionType;
 import dev.overgrown.apoli.condition.context.BiEntityCtx;
 import dev.overgrown.apoli.data.Expression;
-import dev.overgrown.apoli.entity.GrabManager;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.player.Player;
 
@@ -29,7 +26,8 @@ public final class AggroAtAction implements ActionType<BiEntityCtx, AggroAtActio
         if (!(ctx.target() instanceof NeutralMob neutralMob)) return;
         if (!(ctx.actor() instanceof Player player)) return;
 
+        int duration = cfg.duration.evalInt(player);
         neutralMob.setPersistentAngerTarget(player.getUUID());
-        neutralMob.setRemainingPersistentAngerTime((cfg.duration.evalInt(player)));
+        neutralMob.setRemainingPersistentAngerTime(duration < 0 ? Integer.MAX_VALUE : duration);
     }
 }

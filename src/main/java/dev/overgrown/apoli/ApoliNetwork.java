@@ -1,5 +1,8 @@
 package dev.overgrown.apoli;
 
+import dev.overgrown.apoli.client.SyncCustomEffectRegistry;
+import dev.overgrown.apoli.effects.CustomEffectNetworking;
+import dev.overgrown.apoli.effects.CustomEffectRegistry;
 import dev.overgrown.apoli.network.payload.ApplyVelocityS2C;
 import dev.overgrown.apoli.network.payload.BuySkillC2S;
 import dev.overgrown.apoli.network.payload.DisguiseUpdateS2C;
@@ -30,7 +33,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class ApoliNetwork {
 
-    private static final String PROTOCOL_VERSION = "12";
+    private static final String PROTOCOL_VERSION = "13";
 
     private ApoliNetwork() {}
 
@@ -103,6 +106,23 @@ public final class ApoliNetwork {
         registrar.playToClient(RopeVerletLengthS2C.TYPE, RopeVerletLengthS2C.STREAM_CODEC, ApoliNetwork::onRopeVerletLength);
         registrar.playToServer(RopeChangeLengthC2S.TYPE, RopeChangeLengthC2S.STREAM_CODEC, ApoliNetwork::onRopeChangeLength);
         registrar.playToServer(RopeSwingC2S.TYPE, RopeSwingC2S.STREAM_CODEC, ApoliNetwork::onRopeSwing);
+
+        registrar.configurationToClient(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE,
+            CustomEffectNetworking.SyncCustomEffectsPayload.CODEC, SyncCustomEffectRegistry::sync);
+        registrar.configurationToServer(CustomEffectNetworking.SyncCustomEffectsResponsePayload.TYPE,
+            CustomEffectNetworking.SyncCustomEffectsResponsePayload.CODEC, ApoliNetwork::onCustomEffectsConfigured);
+        registrar.playToClient(CustomEffectNetworking.SyncCustomEffectsPayload.TYPE,
+            CustomEffectNetworking.SyncCustomEffectsPayload.CODEC, SyncCustomEffectRegistry::sync);
+        registrar.playToServer(CustomEffectNetworking.SyncCustomEffectsResponsePayload.TYPE,
+            CustomEffectNetworking.SyncCustomEffectsResponsePayload.CODEC, ApoliNetwork::onCustomEffectsAck);
+    }
+
+    private static void onCustomEffectsConfigured(CustomEffectNetworking.SyncCustomEffectsResponsePayload payload, IPayloadContext context) {
+        context.finishCurrentTask(CustomEffectNetworking.SyncCustomEffectConfigurationTask.TYPE);
+    }
+
+    private static void onCustomEffectsAck(CustomEffectNetworking.SyncCustomEffectsResponsePayload payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) CustomEffectRegistry.acknowledge(player, payload.success());
     }
 
     private static void onSyncPowers(SyncPowersS2C payload, IPayloadContext ctx) {

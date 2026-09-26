@@ -2,8 +2,7 @@ package dev.overgrown.apoli.mixin.effects;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import dev.overgrown.apoli.Apoli;
-import dev.overgrown.apoli.effects.CustomEffect;
+import dev.overgrown.apoli.effects.CustomMobEffect;
 import dev.overgrown.apoli.effects.RuntimeMobEffectRegistry;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.Reference2IntMap;
@@ -18,18 +17,16 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
-
 
 @Mixin(MappedRegistry.class)
 public abstract class MobEffectRegistryCustomEffectMixin<T> implements RuntimeMobEffectRegistry {
     @Final
-    @Shadow ResourceKey<Registry<?>> key;
+    @Shadow
+    private ResourceKey<? extends Registry<T>> key;
     @Final
     @Shadow
     private ObjectList<Holder.Reference<T>> byId;
@@ -50,80 +47,93 @@ public abstract class MobEffectRegistryCustomEffectMixin<T> implements RuntimeMo
     private Map<ResourceKey<T>, RegistrationInfo> registrationInfos;
 
     @Unique
-    private volatile boolean allowWrite = false;
+    private boolean apoli$allowWrite;
 
     @Unique
-    private int size = -1;
+    private Map<ResourceKey<T>, Holder.Reference<T>> apoli$retired;
 
     @WrapMethod(method = "validateWrite()V")
-    void apoli$allowRuntimeWrite(Operation<Void> original) {
-        if (key.equals(Registries.MOB_EFFECT) && allowWrite) {
-            Apoli.LOGGER.debug("Allowed Write to MOB_EFFECT Registry!");
-
-            return;
-        }
-
+    private void apoli$allowRuntimeWrite(Operation<Void> original) {
+        if (this.apoli$allowWrite) return;
         original.call();
     }
 
     @WrapMethod(method = "validateWrite(Lnet/minecraft/resources/ResourceKey;)V")
-    void apoli$allowRuntimeWriteKey(ResourceKey<T> resourceKey, Operation<Void> original) {
-        if (key.equals(Registries.MOB_EFFECT) && allowWrite) {
-            Apoli.LOGGER.debug("Allowed Write to MOB_EFFECT Registry! Key: {}", resourceKey);
-
-            return;
-        }
-
+    private void apoli$allowRuntimeWriteKey(ResourceKey<T> resourceKey, Operation<Void> original) {
+        if (this.apoli$allowWrite) return;
         original.call(resourceKey);
     }
 
-    @Inject(method = "freeze", at = @At(value = "TAIL"))
-    void apoli$onFreeze(CallbackInfoReturnable<Registry<T>> cir) {
-        if (key.equals(Registries.MOB_EFFECT)) {
-            size = ((MappedRegistry<?>) (Object) this).size();
+    @Override
+    public void apoli$unregisterCustom() {
+        if (!this.key.equals(Registries.MOB_EFFECT)) return;
+
+        Iterator<Map.Entry<ResourceKey<T>, Holder.Reference<T>>> keys = this.byKey.entrySet().iterator();
+        while (keys.hasNext()) {
+            Map.Entry<ResourceKey<T>, Holder.Reference<T>> entry = keys.next();
+            if (!apoli$isCustom(entry.getValue())) continue;
+            keys.remove();
+            this.registrationInfos.remove(entry.getKey());
+            if (this.apoli$retired == null) this.apoli$retired = new HashMap<>();
+            this.apoli$retired.put(entry.getKey(), entry.getValue());
         }
+
+        Iterator<Holder.Reference<T>> locations = this.byLocation.values().iterator();
+        while (locations.hasNext()) {
+            if (apoli$isCustom(locations.next())) locations.remove();
+        }
+
+        Iterator<T> values = this.byValue.keySet().iterator();
+        while (values.hasNext()) {
+            if (values.next() instanceof CustomMobEffect) values.remove();
+        }
+
+        Iterator<T> numbered = this.toId.keySet().iterator();
+        while (numbered.hasNext()) {
+            if (numbered.next() instanceof CustomMobEffect) numbered.remove();
+        }
+
+        int first = -1;
+        for (int i = 0; i < this.byId.size(); i++) {
+            if (apoli$isCustom(this.byId.get(i))) {
+                first = i;
+                break;
+            }
+        }
+        if (first < 0) return;
+
+        int write = first;
+        for (int read = first; read < this.byId.size(); read++) {
+            Holder.Reference<T> reference = this.byId.get(read);
+            if (reference == null || apoli$isCustom(reference)) continue;
+            this.byId.set(write, reference);
+            this.toId.put(reference.value(), write);
+            write++;
+        }
+        this.byId.size(write);
     }
 
     @Override
-    public void apoli$truncate(List<CustomEffect> effects) {
-        if (!key.equals(Registries.MOB_EFFECT)) {
-            Apoli.LOGGER.warn("Method apoli$truncate called on non-MOB_EFFECT Registry.");
+    @SuppressWarnings("unchecked")
+    public void apoli$register(CustomMobEffect effect) {
+        if (!this.key.equals(Registries.MOB_EFFECT)) return;
 
-            return;
+        ResourceKey<T> resourceKey = ResourceKey.create(this.key, effect.id);
+        if (this.apoli$retired != null) {
+            Holder.Reference<T> previous = this.apoli$retired.remove(resourceKey);
+            if (previous != null) this.byKey.put(resourceKey, previous);
         }
 
-        if (size == -1) {
-            Apoli.LOGGER.warn("Registry hasn't been frozen yet. No changes where made!");
-
-            return;
-        }
-
-        for (int i = size; i < byId.size(); i++) {
-            Holder.Reference<T> h = byId.get(i);
-            if (h == null) continue;
-            byKey.remove(h.key());
-            byLocation.remove(h.key().location());
-            registrationInfos.remove(h.key());
-            byValue.remove(h.value());
-            toId.removeInt(h.value());
-        }
-        byId.size(size);
-    }
-
-    @Override
-    public void apoli$register(CustomEffect effect) {
-        if (!key.equals(Registries.MOB_EFFECT)) {
-            Apoli.LOGGER.warn("Method apoli$register called on non-MOB_EFFECT Registry.");
-
-            return;
-        }
-
-        allowWrite = true;
+        this.apoli$allowWrite = true;
         try {
-            Registry.register((Registry<T>) this, effect.id(), (T) effect.getMobEffect());
+            Registry.register((Registry<T>) (Object) this, resourceKey, (T) effect);
         } finally {
-            allowWrite = false;
+            this.apoli$allowWrite = false;
         }
+    }
 
+    @Unique
+    private static boolean apoli$isCustom(Holder.Reference<?> reference) {
+        return reference != null && reference.isBound() && reference.value() instanceof CustomMobEffect;
     }
 }

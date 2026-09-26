@@ -22,7 +22,7 @@ public class MinecraftServerReloadMixin {
     @ModifyReturnValue(method = "reloadResources", at = @At("RETURN"))
     private CompletableFuture<Void> apoli$afterReload(CompletableFuture<Void> future) {
         return future.whenComplete((v, ex) -> {
-            if (ex != null) CustomEffectRegistry.reloading = false;
+            if (ex != null && EffectConfig.get().enabled()) CustomEffectRegistry.finishReload(false);
         });
     }
 }

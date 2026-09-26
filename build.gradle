@@ -203,6 +203,11 @@ dependencies {
     // Gated by SodiumCompatMixinPlugin, so Apoli runs fine without it.
     compileOnly "maven.modrinth:sodium:${project.sodium_version}"
 
+    // You're in Grave Danger and GraveStone Mod (compile-only, optional at runtime) — power inventories,
+    // keep_inventory and the GraveInscriptions lines on the grave. Gated by ModCompat and GraveCompatMixinPlugin.
+    compileOnly "maven.modrinth:yigd:${project.yigd_version}"
+    compileOnly "maven.modrinth:gravestone-mod:${project.gravestone_version}"
+
     compileOnly "maven.modrinth:skills:${project.puffish_skills_version}"
 
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"

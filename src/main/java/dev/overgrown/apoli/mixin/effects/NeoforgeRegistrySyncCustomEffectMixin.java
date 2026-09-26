@@ -13,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Set;
+
 @Mixin(RegistrySnapshot.class)
 public class NeoforgeRegistrySyncCustomEffectMixin {
     @Shadow
@@ -21,8 +23,8 @@ public class NeoforgeRegistrySyncCustomEffectMixin {
 
     @Inject(method = "<init>(Lnet/minecraft/core/Registry;Z)V", at = @At("RETURN"))
     private void apoli$hideCustomEffects(Registry<?> registry, boolean full, CallbackInfo ci) {
-        if (!full && registry.key().equals(Registries.MOB_EFFECT)) {
-            ids.values().removeIf(CustomEffectRegistry.byId::containsKey);
-        }
+        if (full || !registry.key().equals(Registries.MOB_EFFECT)) return;
+        Set<ResourceLocation> custom = CustomEffectRegistry.ids();
+        if (!custom.isEmpty()) ids.values().removeIf(custom::contains);
     }
 }
