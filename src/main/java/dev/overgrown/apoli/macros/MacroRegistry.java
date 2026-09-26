@@ -15,6 +15,8 @@ public final class MacroRegistry {
     public static Map<ResourceLocation, Macro> macros = new HashMap<>();
     private static final Map<ResourceLocation, ResourceLocation> superBySub = new HashMap<>();
 
+    private static final ResourceLocation macroAltId = new ResourceLocation("origins", "macro");
+
     public static @Nullable JsonElement applyMacro(ResourceLocation macroId, Map<String, Dynamic<?>> args, ResourceLocation caller) {
         if (!macros.containsKey(macroId)) {
             Apoli.LOGGER.error("[Apoli] Macro {} is not defined, called from {}.", macroId, caller);
@@ -40,7 +42,7 @@ public final class MacroRegistry {
             return values.map(jsonElementStream -> new Dynamic<>(ops, ops.createList(jsonElementStream.map(value -> resolve(new Dynamic<>(ops, value), keyCtx, seen).getValue())))).orElse(elem);
         }
 
-        if (type.equals(Apoli.id("macro"))) {
+        if (type.equals(Apoli.id("macro")) || type.equals(macroAltId)) {
             MacroUsage usage = MacroUsage.CODEC.parse(IdWildcards.apply(elem, keyCtx)).resultOrPartial((str) -> Apoli.LOGGER.error("[Apoli] failed to parse macro usage {}: {}", keyCtx, str)).orElse(null);
 
             if (usage == null) {
