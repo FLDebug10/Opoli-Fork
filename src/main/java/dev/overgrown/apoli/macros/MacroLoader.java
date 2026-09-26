@@ -3,6 +3,7 @@ package dev.overgrown.apoli.macros;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.Dynamic;
 import dev.overgrown.apoli.Apoli;
+import dev.overgrown.apoli.power.PowerTypeRegistry;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
@@ -20,15 +21,15 @@ public final class MacroLoader {
         for (var elem : data.entrySet()) {
             Set<String> toRemoveSub = new HashSet<>();
 
-            String declared = elem.getValue().get("type").asString().result().orElse(null);
-            var type = declared == null ? null : ResourceLocation.tryParse(declared);
+            ResourceLocation declared = ResourceLocation.tryParse(elem.getValue().get("type").asString().result().orElse(""));
+            var type = declared == null ? null : PowerTypeRegistry.resolveId(declared);
 
             if (type == null) continue;
 
             if(type.equals(Apoli.id("multiple"))) {
                 for (var sub : elem.getValue().getMapValues().result().orElse(Map.of()).entrySet()) {
-                    String declaredSub = sub.getValue().get("type").asString().result().orElse(null);
-                    var typeSub = declaredSub == null ? null : ResourceLocation.tryParse(declaredSub);
+                    ResourceLocation declaredSub = ResourceLocation.tryParse(sub.getValue().get("type").asString().result().orElse(""));
+                    var typeSub = declaredSub == null ? null : PowerTypeRegistry.resolveId(declaredSub);
 
                     ResourceLocation key = ResourceLocation.tryParse(elem.getKey() + "_" + sub.getKey().asString().result().orElse(""));
                     if (key == null || typeSub == null) continue;
