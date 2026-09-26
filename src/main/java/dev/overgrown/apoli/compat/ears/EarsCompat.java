@@ -3,6 +3,7 @@ package dev.overgrown.apoli.compat.ears;
 import com.unascribed.ears.api.EarsFeatureType;
 import com.unascribed.ears.api.registry.EarsInhibitorRegistry;
 import dev.overgrown.apoli.Apoli;
+import dev.overgrown.apoli.client.render.AttachmentParts;
 import dev.overgrown.apoli.client.render.SkinRenderCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -27,7 +28,9 @@ public final class EarsCompat {
     private static boolean shouldInhibit(EarsFeatureType type, Object peer) {
         if (!(peer instanceof LivingEntity entity)) return false;
         if (SkinRenderCompat.suppressed(entity, FEATURE_KEYS[type.ordinal()])) return true;
-        return SkinRenderCompat.rgba(entity)[3] <= 0.001F;
+        if (SkinRenderCompat.rgba(entity)[3] <= 0.001F) return true;
+        int bits = EarsAttachments.featureBits(type);
+        return bits != 0 && (AttachmentParts.hiddenMask(entity) & bits) == bits;
     }
 
     private static String[][] buildFeatureKeys() {

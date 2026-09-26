@@ -35,6 +35,8 @@ public final class ScaleTypes {
     public static final ScaleType ATTACK = register("attack");
     public static final ScaleType DEFENSE = register("defense");
     public static final ScaleType HELD_ITEM = register("held_item");
+    public static final ScaleType HELD_ITEM_MAINHAND = register("held_item_mainhand").multipliedBy(HELD_ITEM);
+    public static final ScaleType HELD_ITEM_OFFHAND = register("held_item_offhand").multipliedBy(HELD_ITEM);
 
     private static ScaleType register(String path) {
         return register(Apoli.id(path), false);

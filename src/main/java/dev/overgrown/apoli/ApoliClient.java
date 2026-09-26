@@ -15,7 +15,6 @@ import dev.overgrown.apoli.network.payload.RopeVerletLengthS2C;
 import dev.overgrown.apoli.network.payload.SyncEntityPowersS2C;
 import dev.overgrown.apoli.network.payload.SyncKeybindsS2C;
 import dev.overgrown.apoli.network.payload.SyncPowersS2C;
-import dev.overgrown.apoli.power.builtin.SprintingPower;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -87,7 +86,7 @@ public final class ApoliClient implements ClientModInitializer {
             ClientPlayNetworking.send(KeyHeldC2S.CHANNEL, buf);
         });
 
-        ClientPlayNetworking.registerGlobalReceiver(CustomEffectNetworking.SyncCustomEffectsPacket.CHANNEL, (mc, listener, byteBuf, sender) -> SyncCustomEffectRegistry.sync(byteBuf, sender));
+        ClientPlayNetworking.registerGlobalReceiver(CustomEffectNetworking.SyncCustomEffectsPacket.CHANNEL, (mc, listener, byteBuf, sender) -> SyncCustomEffectRegistry.sync(mc, byteBuf, sender));
 
         ClientPlayNetworking.registerGlobalReceiver(SyncPowersS2C.CHANNEL, (mc, handler, buf, sender) -> {
             SyncPowersS2C payload = SyncPowersS2C.read(buf);
@@ -313,6 +312,7 @@ public final class ApoliClient implements ClientModInitializer {
                     dev.overgrown.apoli.client.ShaderPowerState.invalidate();
                     dev.overgrown.apoli.client.particle.ParticleSheet.clearCache();
                     dev.overgrown.apoli.client.particle.ParticleTextures.clearCache();
+                    dev.overgrown.apoli.client.render.AnimatedTextures.clearCache();
                 }
             });
 
@@ -371,15 +371,5 @@ public final class ApoliClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(dev.overgrown.apoli.client.TextOverlayRenderer::render);
         HudRenderCallback.EVENT.register(OverlayRenderer::renderAboveHud);
         HudRenderCallback.EVENT.register(dev.overgrown.apoli.client.DevHudRenderer::render);
-
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player != null && SprintingPower.isSprinting(client.player)) {
-                boolean isPressingUp = client.player.input.up;
-
-                if (isPressingUp) {
-                    client.player.setSprinting(true);
-                }
-            }
-        });
     }
 }

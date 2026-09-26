@@ -55,13 +55,38 @@ public final class Scales {
     }
 
     public static float applied(Entity entity, ScaleType type, float partial) {
-        if (PehkuiBridge.ownsGeometry()) return 1.0F;
-        return value(entity, type, partial);
+        if (!PehkuiBridge.ownsGeometry()) return value(entity, type, partial);
+        return PehkuiBridge.handles(type) ? 1.0F : beyondPehkui(entity, type, partial);
     }
 
     public static float appliedIfScaled(Entity entity, ScaleType type, float partial) {
-        if (untouched(entity) || PehkuiBridge.ownsGeometry()) return 1.0F;
-        return value(entity, type, partial);
+        if (untouched(entity)) return 1.0F;
+        return applied(entity, type, partial);
+    }
+
+    private static float beyondPehkui(Entity entity, ScaleType type, float partial) {
+        ScaleState state = stateOf(entity);
+        if (state == null) {
+            if (!anyPowerLoaded() || !ScalePower.hasAny(entity)) return 1.0F;
+            state = stateOrCreate(entity);
+        }
+        resolve(entity, state, state.isAnimating() ? partial : 1.0F);
+        return ownBeyondPehkui(state, type);
+    }
+
+    private static float ownBeyondPehkui(ScaleState state, ScaleType type) {
+        float v = state.ownAt(type.index());
+        ScaleType[] multipliers = type.multipliers();
+        for (int m = 0; m < multipliers.length; m++) {
+            if (!PehkuiBridge.handles(multipliers[m])) v *= ownBeyondPehkui(state, multipliers[m]);
+        }
+        ScaleType[] divisors = type.divisors();
+        for (int d = 0; d < divisors.length; d++) {
+            if (PehkuiBridge.handles(divisors[d])) continue;
+            float f = ownBeyondPehkui(state, divisors[d]);
+            if (f != 0.0F) v /= f;
+        }
+        return ScaleState.clamp(v);
     }
 
     public static float own(Entity entity, ScaleType type) {

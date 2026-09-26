@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "package": "dev.overgrown.apoli.compat.gravestones.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "plugin": "dev.overgrown.apoli.compat.grave.GraveCompatMixinPlugin",
+  "client": [
+    "TechnicalGravestoneBlockEntityMixin",
+    "TechnicalGravestoneBlockEntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

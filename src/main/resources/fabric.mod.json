@@ -46,7 +46,9 @@
     "apoli-bettercombat.mixins.json",
     "apoli-walkers.mixins.json",
     "apoli-sodium.mixins.json",
-    "apoli-ledger.mixins.json"
+    "apoli-ledger.mixins.json",
+    "apoli-yigd.mixins.json",
+    "apoli-gravestones.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",

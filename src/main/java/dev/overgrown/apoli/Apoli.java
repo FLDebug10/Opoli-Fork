@@ -58,7 +58,6 @@ import net.minecraft.world.entity.Entity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -108,8 +107,6 @@ public final class Apoli implements ModInitializer {
             new IdentifiedReloader(id("skill_trees_reloader"), skillLoader));
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
             new IdentifiedReloader(id("global_powers_reloader"), new dev.overgrown.apoli.global.GlobalPowerLoader()));
-        if (EffectConfig.get().enabled()) ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
-                new IdentifiedReloader(id("custom_effect_reloader"), new dev.overgrown.apoli.effects.CustomEffectLoader()));
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(
             new IdentifiedReloader(id("scripts_reloader"), new dev.overgrown.apoli.script.ScriptLoader()));
 
@@ -123,7 +120,7 @@ public final class Apoli implements ModInitializer {
             dev.overgrown.apoli.skill.SkillRegistry.reportOrphanedSkills();
             ApoliNetwork.broadcastPowers(server);
             ApoliNetwork.broadcastKeybinds(server, SyncKeybindsS2C.fromCurrent());
-            if (EffectConfig.get().enabled()) dev.overgrown.apoli.effects.CustomEffectRegistry.update(server);
+            if (EffectConfig.get().enabled()) CustomEffectRegistry.finishReload(true);
             dev.overgrown.apoli.recipe.ApoliPowerRecipes.inject(server);
             dev.overgrown.apoli.compat.voicechat.VoiceState.setServer(server);
             dev.overgrown.apoli.compat.voicechat.VoiceState.setCallbacks(
@@ -131,14 +128,16 @@ public final class Apoli implements ModInitializer {
                 dev.overgrown.apoli.compat.voicechat.VoicePowerHandler::onSpeakStop);
         });
         ServerLifecycleEvents.START_DATA_PACK_RELOAD.register(((server, resourceManager) -> {
-            CustomEffectRegistry.reloading = true;
-            CustomEffectRegistry.purge(server);
+            if (EffectConfig.get().enabled()) {
+                CustomEffectRegistry.reloading = true;
+                CustomEffectRegistry.purge(server);
+            }
         }));
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
             dev.overgrown.apoli.skill.SkillRegistry.reportOrphanedSkills();
             dev.overgrown.apoli.global.GlobalPowers.reapplyAll(server);
             dev.overgrown.apoli.recipe.ApoliPowerRecipes.inject(server);
-            if (EffectConfig.get().enabled()) dev.overgrown.apoli.effects.CustomEffectRegistry.update(server);
+            if (EffectConfig.get().enabled()) CustomEffectRegistry.finishReload(success);
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 dev.overgrown.apoli.skill.SkillTrees.grantOnJoin(player);
                 ApoliNetwork.sendSkillDefs(player);
@@ -147,7 +146,6 @@ public final class Apoli implements ModInitializer {
                     CustomEffectNetworking.sync(player, server.isSingleplayerOwner(player.getGameProfile()));
                 }
             }
-            CustomEffectRegistry.timeout = server.getTickCount();
             CustomEffectRegistry.reloading = false;
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server ->
@@ -236,22 +234,23 @@ public final class Apoli implements ModInitializer {
             dev.overgrown.apoli.compat.skills.SkillsCompat.init();
         }
 
+        if (dev.overgrown.apoli.compat.ModCompat.YIGD) {
+            dev.overgrown.apoli.compat.yigd.YigdCompat.init();
+        }
+
+        if (dev.overgrown.apoli.compat.ModCompat.GRAVESTONES) {
+            dev.overgrown.apoli.compat.gravestones.GravestonesCompat.init();
+        }
+
         ServerTickEvents.END_SERVER_TICK.register(Apoli::onServerTick);
 
         EntityElytraEvents.CUSTOM.register((entity, tickElytra) ->
             PowerLookup.hasActive(entity, dev.overgrown.apoli.power.ApoliIds.ELYTRA_FLIGHT));
 
-        ServerPlayNetworking.registerGlobalReceiver(CustomEffectNetworking.CustomEffectResponsePacket.CHANNEL, ((server, player, handler, buf, responseSender) -> {
-            var payload = new CustomEffectNetworking.CustomEffectResponsePacket(buf);
-
-            CustomEffectRegistry.waiting.remove(player.getUUID());
-
-            Apoli.LOGGER.debug("Response Packet Received with success = {}", payload.success());
-
-            if (!payload.success()) {
-                Apoli.LOGGER.warn("Reload failed for Player {}.", player.getTabListDisplayName());
-            }
-        }));
+        ServerPlayNetworking.registerGlobalReceiver(CustomEffectNetworking.CustomEffectResponsePacket.CHANNEL, (server, player, handler, buf, responseSender) -> {
+            CustomEffectNetworking.CustomEffectResponsePacket payload = new CustomEffectNetworking.CustomEffectResponsePacket(buf);
+            server.execute(() -> CustomEffectRegistry.acknowledge(player, payload.success()));
+        });
 
         ServerPlayNetworking.registerGlobalReceiver(PowerActivationC2S.CHANNEL, (server, player, handler, buf, sender) -> {
             PowerActivationC2S payload = PowerActivationC2S.read(buf);
@@ -361,9 +360,7 @@ public final class Apoli implements ModInitializer {
         });
 
         ServerPlayConnectionEvents.JOIN.register(((handler, sender, server) -> {
-            if (ServerPlayNetworking.canSend(handler.player, CustomEffectNetworking.SyncCustomEffectsPacket.CHANNEL)) {
-                CustomEffectNetworking.sync(handler.player, server.isSingleplayerOwner(handler.player.getGameProfile()));
-            }
+            CustomEffectNetworking.syncOnJoin(handler.player, server.isSingleplayerOwner(handler.player.getGameProfile()));
         }));
 
         ServerPlayNetworking.registerGlobalReceiver(dev.overgrown.apoli.network.payload.ProtocolVersionPayload.CHANNEL,
@@ -384,6 +381,7 @@ public final class Apoli implements ModInitializer {
                         ApoliNetwork.sendSkillState(player);
                     }
                     dev.overgrown.apoli.network.PowerSyncCache.onProtocolEcho(player);
+                    CustomEffectNetworking.syncIfPending(player, server.isSingleplayerOwner(player.getGameProfile()));
                 });
             });
 
@@ -446,6 +444,11 @@ public final class Apoli implements ModInitializer {
                 dev.overgrown.apoli.power.builtin.AttributePower.onEntityGone(entity.getUUID());
             }
         });
+
+        ResourceLocation afterAttachmentTransfer = id("after_attachment_transfer");
+        ServerPlayerEvents.AFTER_RESPAWN.addPhaseOrdering(net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE, afterAttachmentTransfer);
+        ServerPlayerEvents.AFTER_RESPAWN.register(afterAttachmentTransfer, (oldPlayer, newPlayer, alive) ->
+            CustomEffectRegistry.dropOrphanedGrants(newPlayer));
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             PoweredEntities.unregister(oldPlayer);
@@ -529,6 +532,7 @@ public final class Apoli implements ModInitializer {
             dev.overgrown.apoli.compat.voicechat.VoiceHearing.forget(handler.player.getUUID());
             dev.overgrown.apoli.compat.voicechat.VoiceState.forget(handler.player.getUUID());
             CustomEffectRegistry.waiting.remove(handler.player.getUUID());
+            CustomEffectNetworking.forget(handler.player.getUUID());
         });
 
         LOGGER.info("[Apoli] Ready. {} power type(s).", PowerTypeRegistry.view().size());
@@ -563,11 +567,8 @@ public final class Apoli implements ModInitializer {
                 impl.clearDirty();
             }
             if (impl.isEmpty()) PoweredEntities.unregister(entity);
-            if (server.getTickCount() > CustomEffectRegistry.timeout + 100 && !CustomEffectRegistry.waiting.isEmpty()) {
-                Apoli.LOGGER.warn("Sync timed out for players: {}", CustomEffectRegistry.waiting.stream().map(uuid -> Objects.requireNonNull(server.getPlayerList().getPlayer(uuid)).getTabListDisplayName()));
-                CustomEffectRegistry.waiting.clear();
-            }
         });
+        CustomEffectRegistry.tick(server);
         dev.overgrown.apoli.block.GhostBlocks.tick(server);
         dev.overgrown.apoli.power.builtin.ShaderPower.tick(server);
         dev.overgrown.apoli.power.builtin.EntitySetPower.flushPendingRemovals();

@@ -25,6 +25,7 @@ public final class PehkuiBridge {
     private static Method setScale;
     private static Method getBaseScale;
     private static final Map<ScaleType, Object> MAPPED = new HashMap<>();
+    private static boolean[] handled = new boolean[0];
 
     public static boolean ownsGeometry() {
         return PRESENT && wire();
@@ -50,6 +51,9 @@ public final class PehkuiBridge {
                 } catch (NoSuchFieldException ignored) {
                 }
             }
+            boolean[] owned = new boolean[all.size()];
+            for (ScaleType type : MAPPED.keySet()) owned[type.index()] = true;
+            handled = owned;
             failed = MAPPED.isEmpty();
         } catch (ReflectiveOperationException | RuntimeException e) {
             failed = true;
@@ -57,6 +61,12 @@ public final class PehkuiBridge {
                 + "Apoli will apply its own scaling instead ({})", e.toString());
         }
         return !failed;
+    }
+
+    public static boolean handles(ScaleType type) {
+        boolean[] owned = handled;
+        int index = type.index();
+        return index < owned.length && owned[index];
     }
 
     public static void push(Entity entity, ScaleState state) {

@@ -131,6 +131,13 @@ dependencies {
 	// Gated by SodiumCompatMixinPlugin, so Apoli runs fine without it.
 	modCompileOnly "maven.modrinth:sodium:${project.sodium_version}"
 
+	// You're in Grave Danger and Gravestones (compile-only, optional at runtime) — power inventories and
+	// keep_inventory go through their grave APIs, and the grave shows the GraveInscriptions lines. YIGD's own
+	// OriginsCompat targets upstream Apoli's classes, so it is switched off and replaced.
+	// Gated by ModCompat and the compat mixin plugins, so Apoli runs fine without either.
+	modCompileOnly "maven.modrinth:yigd:${project.yigd_version}"
+	modCompileOnly "maven.modrinth:pneumono_gravestones:${project.gravestones_version}"
+
 	modCompileOnly "me.lucko:fabric-permissions-api:0.3.1"
 
 	// Simple Voice Chat API (compile-only, optional at runtime) — the voice_* conditions and

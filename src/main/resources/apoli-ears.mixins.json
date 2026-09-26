@@ -5,7 +5,8 @@
   "plugin": "dev.overgrown.apoli.compat.ears.mixin.EarsCompatMixinPlugin",
   "mixins": [],
   "client": [
-    "AbstractEarsRenderDelegateMixin"
+    "AbstractEarsRenderDelegateMixin",
+    "EarsRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

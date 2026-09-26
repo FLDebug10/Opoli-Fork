@@ -1,0 +1,17 @@
+{
+  "required": false,
+  "package": "dev.overgrown.apoli.compat.yigd.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "plugin": "dev.overgrown.apoli.compat.yigd.mixin.YigdCompatMixinPlugin",
+  "mixins": [
+    "GraveBlockEntityMixin",
+    "InventoryComponentAccessor",
+    "OriginsCompatMixin"
+  ],
+  "client": [
+    "GraveBlockEntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

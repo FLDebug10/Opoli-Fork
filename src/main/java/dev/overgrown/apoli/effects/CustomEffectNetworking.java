@@ -7,25 +7,42 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectCategory;
 
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 public final class CustomEffectNetworking {
-    public record ClientEffectData(ResourceLocation id, Optional<String> name, Optional<ResourceLocation> icon, int color) {
+    private static final Set<UUID> PENDING_JOIN = new HashSet<>();
+
+    public record ClientEffectData(ResourceLocation id, MobEffectCategory category, int color,
+                                   Optional<String> name, Optional<ResourceLocation> icon) {
         public ClientEffectData(FriendlyByteBuf buf) {
             this(buf.readResourceLocation(),
+                    buf.readEnum(MobEffectCategory.class),
+                    buf.readInt(),
                     buf.readOptional(FriendlyByteBuf::readUtf),
-                    buf.readOptional(FriendlyByteBuf::readResourceLocation),
-                    buf.readInt());
+                    buf.readOptional(FriendlyByteBuf::readResourceLocation));
         }
 
         public void write(FriendlyByteBuf buf) {
             buf.writeResourceLocation(id);
+            buf.writeEnum(category);
+            buf.writeInt(color);
             buf.writeOptional(name, FriendlyByteBuf::writeUtf);
             buf.writeOptional(icon, FriendlyByteBuf::writeResourceLocation);
-            buf.writeInt(color);
+        }
+
+        static ClientEffectData of(CustomMobEffect effect) {
+            return new ClientEffectData(effect.id, effect.getCategory(), effect.getColor(), effect.name, effect.icon);
+        }
+
+        public CustomMobEffect toEffect() {
+            return new CustomMobEffect(id, category, color, List.of(), name, icon);
         }
     }
 
@@ -35,6 +52,22 @@ public final class CustomEffectNetworking {
 
         public SyncCustomEffectsPacket(FriendlyByteBuf buf) {
             this(buf.readList(ClientEffectData::new));
+        }
+
+        static SyncCustomEffectsPacket of(List<CustomMobEffect> effects) {
+            List<ClientEffectData> data = new ArrayList<>(effects.size());
+            for (CustomMobEffect effect : effects) {
+                data.add(ClientEffectData.of(effect));
+            }
+            return new SyncCustomEffectsPacket(List.copyOf(data));
+        }
+
+        public List<CustomMobEffect> toEffects() {
+            List<CustomMobEffect> out = new ArrayList<>(effects.size());
+            for (ClientEffectData data : effects) {
+                out.add(data.toEffect());
+            }
+            return out;
         }
 
         @Override
@@ -67,16 +100,31 @@ public final class CustomEffectNetworking {
     }
 
     public static void sync(ServerPlayer player, boolean isSinglePlayer) {
-        if (isSinglePlayer || !EffectConfig.get().enabled()) {
-            return;
+        if (send(player, isSinglePlayer)) CustomEffectRegistry.awaitAck(player);
+    }
+
+    public static void syncOnJoin(ServerPlayer player, boolean isSinglePlayer) {
+        if (ServerPlayNetworking.canSend(player, SyncCustomEffectsPacket.CHANNEL)) {
+            send(player, isSinglePlayer);
+        } else {
+            PENDING_JOIN.add(player.getUUID());
         }
+    }
 
-        var packet = new SyncCustomEffectsPacket(CustomEffectRegistry.byEffect.keySet().stream().sorted(Comparator.comparing(CustomEffect::id)).map(effect -> new ClientEffectData(effect.id(), effect.name(), effect.icon(), effect.colorInt())).toList());
+    public static void syncIfPending(ServerPlayer player, boolean isSinglePlayer) {
+        if (!PENDING_JOIN.remove(player.getUUID())) return;
+        if (ServerPlayNetworking.canSend(player, SyncCustomEffectsPacket.CHANNEL)) {
+            send(player, isSinglePlayer);
+        }
+    }
 
-        ServerPlayNetworking.send(player, packet);
+    private static boolean send(ServerPlayer player, boolean isSinglePlayer) {
+        if (isSinglePlayer || !EffectConfig.get().enabled()) return false;
+        ServerPlayNetworking.send(player, CustomEffectRegistry.payload());
+        return true;
+    }
 
-        CustomEffectRegistry.waiting.add(player.getUUID());
-
-        Apoli.LOGGER.debug("Play Packet send for {} Effects.", packet.effects.size());
+    public static void forget(UUID player) {
+        PENDING_JOIN.remove(player);
     }
 }

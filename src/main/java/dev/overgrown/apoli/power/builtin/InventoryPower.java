@@ -24,6 +24,8 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public final class InventoryPower extends PowerType<InventoryPower.Config> {
@@ -37,6 +39,14 @@ public final class InventoryPower extends PowerType<InventoryPower.Config> {
         boolean recoverable,
         Key key
     ) {}
+
+    public record DeathDrop(ResourceLocation power, int slot, ItemStack stack) {
+        public static final Codec<DeathDrop> CODEC = RecordCodecBuilder.create(i -> i.group(
+            ResourceLocation.CODEC.fieldOf("power").forGetter(DeathDrop::power),
+            Codec.INT.fieldOf("slot").forGetter(DeathDrop::slot),
+            ItemStack.CODEC.fieldOf("stack").forGetter(DeathDrop::stack)
+        ).apply(i, DeathDrop::new));
+    }
 
     @Override
     public MapCodec<Config> configCodec() {
@@ -101,20 +111,61 @@ public final class InventoryPower extends PowerType<InventoryPower.Config> {
     }
 
     public void dropOnDeath(ResourceLocation powerId, Config cfg, LivingEntity dead, PowerContainerImpl container, ServerLevel level) {
+        List<DeathDrop> drops = new ArrayList<>();
+        collectDeathDrops(powerId, cfg, dead, container, level, true, drops);
+        for (int i = 0; i < drops.size(); i++) dead.spawnAtLocation(drops.get(i).stack());
+    }
+
+    public static List<DeathDrop> deathDrops(LivingEntity dead, boolean take) {
+        if (!(dead.level() instanceof ServerLevel level)) return List.of();
+        if (!(PowerContainer.of(dead) instanceof PowerContainerImpl impl) || impl.isEmpty()) return List.of();
+        List<DeathDrop> drops = null;
+        for (ResourceLocation powerId : impl.allPowers()) {
+            if (impl.isSuppressed(powerId)) continue;
+            Power loaded = ApoliPowers.get(powerId);
+            if (loaded == null || !(loaded.config() instanceof Config cfg) || !cfg.dropOnDeath()) continue;
+            if (drops == null) drops = new ArrayList<>(4);
+            collectDeathDrops(powerId, cfg, dead, impl, level, take, drops);
+        }
+        return drops == null ? List.of() : drops;
+    }
+
+    private static void collectDeathDrops(ResourceLocation powerId, Config cfg, LivingEntity dead, PowerContainerImpl container,
+                                          ServerLevel level, boolean take, List<DeathDrop> out) {
         CompoundTag stored = container.getAuxNbt(powerId);
         if (stored == null) return;
-        SimpleContainer inv = load(stored, cfg.containerType().slots());
+        SimpleContainer live = liveContainer(dead.getUUID(), powerId);
+        SimpleContainer inv = live != null ? live : load(stored, cfg.containerType().slots());
         boolean changed = false;
         for (int slot = 0; slot < inv.getContainerSize(); slot++) {
             ItemStack stack = inv.getItem(slot);
             if (stack.isEmpty()) continue;
             if (cfg.dropOnDeathFilter().isPresent()
                 && !cfg.dropOnDeathFilter().get().test(new ItemCtx(stack, level, dead))) continue;
-            dead.spawnAtLocation(stack);
+            if (!take) {
+                out.add(new DeathDrop(powerId, slot, stack.copy()));
+                continue;
+            }
+            out.add(new DeathDrop(powerId, slot, stack));
             inv.setItem(slot, ItemStack.EMPTY);
             changed = true;
         }
-        if (changed) container.setAuxNbt(powerId, save(inv));
+        if (changed && live == null) container.setAuxNbt(powerId, save(inv));
+    }
+
+    public static ItemStack restore(LivingEntity holder, ResourceLocation powerId, int slot, ItemStack stack) {
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+        if (!(holder.level() instanceof ServerLevel level)
+            || !(PowerContainer.of(holder) instanceof PowerContainerImpl impl)
+            || !impl.allPowers().contains(powerId)) return stack;
+        Power loaded = ApoliPowers.get(powerId);
+        if (loaded == null || !(loaded.config() instanceof Config cfg)) return stack;
+        SimpleContainer live = liveContainer(holder.getUUID(), powerId);
+        SimpleContainer inv = live != null ? live : load(impl.getAuxNbt(powerId), cfg.containerType().slots());
+        if (slot < 0 || slot >= inv.getContainerSize() || !inv.getItem(slot).isEmpty()) return stack;
+        inv.setItem(slot, stack);
+        if (live == null) impl.setAuxNbt(powerId, save(inv));
+        return ItemStack.EMPTY;
     }
 
     public static void syncAll(ServerPlayer player) {
